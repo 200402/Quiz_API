@@ -3,3 +3,4 @@ global using Microsoft.EntityFrameworkCore.Sqlite;
 global using QuizWebAPI.CoreTypes;
 global using QuizWebAPI;
 global using Microsoft.AspNetCore.Mvc;
+global using System.ComponentModel.DataAnnotations;

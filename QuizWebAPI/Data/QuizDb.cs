@@ -1,4 +1,4 @@
-﻿namespace QuizWebAPI
+﻿namespace QuizWebAPI.Data
 {
     public class QuizDb : DbContext
     {
