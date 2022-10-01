@@ -1,4 +1,6 @@
 using QuizWebAPI.Data;
+using System;
+using System.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,32 +9,48 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<QuizDb>(options =>
 {
-    options.UseSqlite(builder.Configuration.GetConnectionString("Sqlite"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("MsSQL"));
 });
 builder.Services.AddScoped<UserRepository>();
 
 var app = builder.Build();
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c => c.DefaultModelsExpandDepth(-1));
+
 if (app.Environment.IsDevelopment())
 {
-    using var scope = app.Services.CreateScope();
+    var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<QuizDb>();
     db.Database.EnsureCreated();
 }
 
+app.MapGet("/", () =>
+{
+
+}).ExcludeFromDescription();
+
 app.MapGet("/QuizAPI/Users", async (UserRepository repository) =>
-    Results.Ok(await repository.GetUserAsync()))
+    Results.Ok(await repository.GetAllUsersAsync()))
     .Produces<List<User>>(StatusCodes.Status200OK)
     .WithName("GetAllUsers")
     .WithTags("User");
 
 app.MapGet("/QuizAPI/Users/{id}", async (int id, UserRepository repository) => 
-    await repository.GetUserAsync(id) is User user
+    await repository.GetUserByIdAsync(id) is User user
     ? Results.Ok(user)
     : Results.NotFound())
     .Produces<User>(StatusCodes.Status200OK)
     .WithName("GetUserById")
+    .WithTags("User");
+
+app.MapGet("/QuizAPI/CreateRandomUser", async (UserRepository repository) =>
+{
+    var user = repository.CreateRandomUser();
+    await repository.SaveAsync();
+    return Results.Created($"/QuizAPI/Users/{user.Id}", user);
+}).Accepts<User>("application/json")
+    .Produces<User>(StatusCodes.Status201Created)
+    .WithName("CreateRandomUser")
     .WithTags("User");
 
 app.MapPost("/QuizAPI/Users", async ([FromBody] User user, UserRepository repository) =>

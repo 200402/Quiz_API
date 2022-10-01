@@ -9,11 +9,31 @@
             Db = db;
         }
 
-        public async Task<List<User>> GetUserAsync() =>
+        public async Task<List<User>> GetAllUsersAsync() =>
             await Db.Users.ToListAsync();
 
-        public async Task<User> GetUserAsync(int Id) =>
+        public async Task<User> GetUserByIdAsync(int Id) =>
             await Db.Users.FindAsync(new object[] { Id });
+
+        public async Task<User> CreateRandomUser() 
+        {
+            if (Db.Users.Count() < 100)
+            {
+                const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+                var user = new User();
+                var r = new Random();
+                user.Login = new string(Enumerable.Repeat(chars, r.Next(5, 10))
+                        .Select(s => s[r.Next(s.Length)]).ToArray());
+                user.Password = new string(Enumerable.Repeat(chars, r.Next(5, 10))
+                        .Select(s => s[r.Next(s.Length)]).ToArray());
+                await InsertUserAsync(user);
+                return user;
+            }
+            else
+            {
+                return new User { Password = "ПОШОЛ", Login = "НАХУЙ" };
+            }
+        }
 
         public async Task InsertUserAsync(User user) => await Db.Users.AddAsync(user);
 
