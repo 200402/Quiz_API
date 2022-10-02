@@ -19,18 +19,29 @@ app.MapGet("/", () => qwer).ExcludeFromDescription();
 app.MapGet("/QuizAPI/Users", async (UserRepository repository) =>
     Results.Ok(await repository.GetAllUsersAsync()))
     .Produces<List<User>>(StatusCodes.Status200OK)
-    .WithName("GetAllUsers")
+    .WithName("Get all users")
     .WithTags("User");
 
-app.MapGet("/QuizAPI/Users/{id}", async (int id, UserRepository repository) => 
-    await repository.GetUserByIdAsync(id) is User user
-    ? Results.Ok(user)
-    : Results.NotFound())
+app.MapPut("/QuizAPI/AuthorizationUser", async ([FromBody] User user, UserRepository repository) =>
+{
+    await repository.AuthorizationUser(user.Login,user.Password);
+    await repository.SaveAsync();
+    return Results.Created($"/QuizAPI/Users/{user.Id}", user);
+}).Accepts<User>("application/json")
     .Produces<User>(StatusCodes.Status200OK)
-    .WithName("GetUserById")
+    .WithName("AuthorizationUser")
     .WithTags("User");
 
-app.MapGet("/QuizAPI/CreateRandomUser", async (UserRepository repository) =>
+app.MapPut("/QuizAPI/Users", async ([FromBody] User user, UserRepository repository) =>
+{
+    await repository.UpdateUserAsync(user);
+    await repository.SaveAsync();
+    return Results.Created($"/QuizAPI/Users/{user.Id}", user);
+}).Accepts<User>("application/json")
+    .WithName("UpdateUser")
+    .WithTags("User");
+
+app.MapPost("/QuizAPI/CreateRandomUser", async (UserRepository repository) =>
 {
     var user = repository.CreateRandomUser();
     await repository.SaveAsync();
@@ -48,24 +59,6 @@ app.MapPost("/QuizAPI/Users", async ([FromBody] User user, UserRepository reposi
 }).Accepts<User>("application/json")
     .Produces<User>(StatusCodes.Status201Created)
     .WithName("CreateUser")
-    .WithTags("User");
-
-app.MapPut("/QuizAPI/Users", async ([FromBody] User user, UserRepository repository) =>
-{
-    await repository.UpdateUserAsync(user);
-    await repository.SaveAsync();
-    return Results.NoContent();
-}).Accepts<User>("application/json")
-    .WithName("UpdateUser")
-    .WithTags("User");
-
-app.MapDelete("/QuizAPI/Users", async (int id, UserRepository repository) =>
-{
-    await repository.DeleteUserAsync(id);
-    await repository.SaveAsync();
-    return Results.NoContent();
-}).Accepts<User>("application/json")
-    .WithName("DeleteUser")
     .WithTags("User");
 
 app.UseHttpsRedirection();
