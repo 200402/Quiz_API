@@ -6,28 +6,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+var qwer = "1";
 
-builder.Services.AddDbContext<QuizDb>(options =>
-{
-    options.UseSqlServer(builder.Configuration.GetConnectionString("MsSQL"));
-});
+builder.Services.AddDbContext<QuizDb>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("MsSQLServer")));
 builder.Services.AddScoped<UserRepository>();
 
 var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(c => c.DefaultModelsExpandDepth(-1));
-
-if (app.Environment.IsDevelopment())
-{
-    var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<QuizDb>();
-    db.Database.EnsureCreated();
-}
-
-app.MapGet("/", () =>
-{
-
-}).ExcludeFromDescription();
+app.MapGet("/", () => qwer).ExcludeFromDescription();
 
 app.MapGet("/QuizAPI/Users", async (UserRepository repository) =>
     Results.Ok(await repository.GetAllUsersAsync()))
