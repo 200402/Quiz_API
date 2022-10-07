@@ -2,95 +2,191 @@
 {
     public class UserRepository
     {
-        private QuizDb Db;
+        //private QuizDb Db;
+        private SqlConnection myConn;
+        private SqlCommand myCommand;
 
-        public UserRepository(QuizDb db)
+
+        public UserRepository(SqlConnection myConn)
         {
-            Db = db;
+            this.myConn = myConn;
         }
 
-        public async Task<List<User>> GetAllUsersAsync() =>
-            await Db.Users.ToListAsync();
-
-        public async Task<User> GetUserByIdAsync(int Id) =>
-            await Db.Users.FindAsync(new object[] { Id });
-
-        public async Task<User> AuthorizationUser(string login, string password)
+        public async Task<List<User>> GetAllUsersAsync()
         {
-            var user = await Db.Users.FindAsync(new object[] { login, password });
-            if (user == null)
-                return null;
-            user.Token = GenerateRandomString(50);
-            await UpdateUserAsync(user);
-            user.Login = "";
-            user.Password = "";
+            List<User>userList = new();
+            string sql = "SELECT * FROM Users";
+            using (myCommand = new SqlCommand(sql, myConn))
+            {
+                myConn.Open();
+                await using (SqlDataReader reader = myCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        userList.Add(readerToUser(reader));
+                    }
+                }
+                myConn.Close();
+            }
+            return userList;
+        }
+
+        public async Task<User> GetUserByIdAsync(int Id)
+        {
+            User user = new();
+            string sql = $"SELECT * FROM Users WHERE  Id = '{Id}'";
+            using (myCommand = new SqlCommand(sql, myConn))
+            {
+                myConn.Open();
+                await using (SqlDataReader reader = myCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        user = readerToUser(reader);
+                    }
+                }
+                myConn.Close();
+            }
             return user;
         }
 
-        public async Task<User> CreateRandomUser() 
+        public async Task<User> GetUserByTokenAsync(string token)
         {
-            if (Db.Users.Count() < 100)
+            User user = new();
+            string sql = $"SELECT * FROM Users WHERE  Token = '{token}'";
+            using (myCommand = new SqlCommand(sql, myConn))
             {
-                var user = new User();
-                user.Login = GenerateRandomString(5,10);
-                user.Password = GenerateRandomString(5, 10);
-                await InsertUserAsync(user);
+                myConn.Open();
+                await using (SqlDataReader reader = myCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        user = readerToUser(reader);
+                    }
+                }
+                myConn.Close();
+            }
+            return user;
+        }
+
+        public async Task<User> GetUserByLoginAsync(string Login)
+        {
+            User user = new();
+            string sql = $"SELECT * FROM Users WHERE Login = '{Login}'";
+            using (myCommand = new SqlCommand(sql, myConn))
+            {
+                myConn.Open();
+                await using (SqlDataReader reader = myCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        user = readerToUser(reader);
+                    }
+                }
+                myConn.Close();
+            }
+            return user;
+        }
+
+        public async Task<User> CreateRandomUser()
+        {
+            User user = new();
+            string sql = "SELECT COUNT(*) FROM Users";
+            int count = 0;
+            using (myCommand = new SqlCommand(sql, myConn))
+            {
+                myConn.Open();
+                await using (SqlDataReader reader = myCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        count = Convert.ToInt32(reader[0]);
+                    }
+                }
+                myConn.Close();
+            }
+            if (count < 100)
+            {
+                user.Login = "TEST" + GenerateRandomString(5, 20);
+                user.Name = "TEST" + GenerateRandomString(5, 20);
+                user.Password = "TEST" + GenerateRandomString(5, 20);
+                user.ImageUrl = "TEST" + GenerateRandomString(5, 20);
+                user.Token = "TEST" + GenerateRandomString(50, 100);
+                sql = "INSERT INTO Users (Login, Name, Password, ImageUrl, Token)" +
+                    $"VALUES ('{user.Login}', '{user.Name}', '{user.Password}', '{user.ImageUrl}', '{user.Token}')";
+                using (myCommand = new SqlCommand(sql, myConn))
+                {
+                    myConn.Open();
+                    myCommand.ExecuteNonQuery();
+                    myConn.Close();
+                }
                 return user;
             }
-            else
+            return null;
+        }
+
+    private User readerToUser(SqlDataReader reader)
+        {
+            User user = new User();
+            user.Id = Convert.ToInt32(reader[0]);
+            user.Login = reader[1].ToString();
+            user.Password = reader[2].ToString();
+            user.Token = reader[3].ToString();
+            user.Name = reader[4].ToString();
+            user.ImageUrl = reader[5].ToString();
+            return user;
+        }
+
+        public async Task<User> InsertUserAsync(NewUser newUser)
+        {
+            User user = new();
+            user.Login = newUser.Login;
+            user.Password = newUser.Password;
+            user.Name = newUser.Name;
+            user.Token = GenerateRandomString(50, 100);
+            var sql = "INSERT INTO Users (Login, Name, Password, ImageUrl, Token)" +
+                $"VALUES ('{user.Login}', '{user.Name}', '{user.Password}', '{user.ImageUrl}', '{user.Token}')";
+            using (myCommand = new SqlCommand(sql, myConn))
             {
-                return new User { Password = "ПОШОЛ", Login = "НАХУЙ" };
+                myConn.Open();
+                myCommand.ExecuteNonQuery();
+                myConn.Close();
             }
+            return user;
         }
 
-        public async Task<User> DeleteAll() 
-        {
-            foreach (var row in Db.Users)
-            {
-                 Db.Users.Remove(row);
-            }
-            return new User();
-        }
+        //public async Task UpdateUserAsync(User user)
+        //{
+        //    var userFromDb = await Db.Users.FindAsync(new object[] { user.Id, user.Token });
+        //    if (userFromDb == null) 
+        //        return;
+        //    userFromDb.Login = user.Login;
+        //    userFromDb.Password = user.Password;
+        //    userFromDb.Token = user.Token;
+        //}
 
-        public async Task InsertUserAsync(User user)
-        {
-            var userFromDb = await Db.Users.FindAsync(new object[] { user.Login });
-            if (userFromDb == null)
-                await Db.Users.AddAsync(user);
-            return; 
-        }
+        //public async Task DeleteUserAsync(int Id)
+        //{
+        //    var userFromDb = await Db.Users.FindAsync(new object[] { Id });
+        //    if (userFromDb == null) return;
+        //    Db.Users.Remove(userFromDb);
+        //}
 
-        public async Task UpdateUserAsync(User user)
-        {
-            var userFromDb = await Db.Users.FindAsync(new object[] { user.Id });
-            if (userFromDb == null) 
-                return;
-            userFromDb.Login = user.Login;
-            userFromDb.Password = user.Password;
-            userFromDb.Token = user.Token;
-        }
+        //public async Task SaveAsync() => await Db.SaveChangesAsync();
+        //public void Save() => Db.SaveChanges();
 
-        public async Task DeleteUserAsync(int Id)
-        {
-            var userFromDb = await Db.Users.FindAsync(new object[] { Id });
-            if (userFromDb == null) return;
-            Db.Users.Remove(userFromDb);
-        }
+        //private bool _disposed = false;
+        //protected virtual void Dispose(bool disposing)
+        //{
+        //    if (!_disposed) { if (disposing) Db.Dispose(); }
+        //    _disposed = true;
+        //}
 
-        public async Task SaveAsync() => await Db.SaveChangesAsync();
-
-        private bool _disposed = false;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed) { if (disposing) Db.Dispose(); }
-            _disposed = true;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
+        //public void Dispose()
+        //{
+        //    Dispose(true);
+        //    GC.SuppressFinalize(this);
+        //}
 
         private string GenerateRandomString(int lenght)
         {
